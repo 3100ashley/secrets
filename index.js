@@ -55,13 +55,39 @@ app.get("/register", (req, res) => {
   res.render("register.ejs");
 });
 
-app.get("/secrets", (req, res) => {
+app.get("/secrets", async (req, res) => {
   //show right away with an active session cookie
-  console.log(req.user);
   if (req.isAuthenticated()) {
-    res.render("secrets.ejs");
+    try{
+      const result = await db.query("SELECT secrets FROM users WHERE email = $1", [req.user.email])
+      res.render("secrets.ejs", { secret: result.rows[0].secrets });
+    }catch(err){
+      console.log(err)
+    }
+    
   } else {
     res.redirect("/login");
+  }
+});
+
+app.get("/submit", (req, res) => {
+  if (req.isAuthenticated) {
+    res.render("submit.ejs");
+  } else {
+    res.redirect("/login");
+  }
+});
+
+app.post("/submit", async (req, res) => {
+  try {
+    await db.query("UPDATE users SET secrets = $1 WHERE id = $2", [
+      req.body.secret,
+      req.user.id,
+    ]);
+
+    res.redirect("/secrets");
+  } catch (err) {
+    console.log(err);
   }
 });
 
@@ -119,12 +145,12 @@ app.get(
   })
 );
 
-app.get("/logout", (req,res) => {
+app.get("/logout", (req, res) => {
   req.logout((err) => {
-    if(err) console.log(err)
-    res.redirect("/")
-  })
-})
+    if (err) console.log(err);
+    res.redirect("/");
+  });
+});
 
 app.post(
   "/login",
@@ -190,11 +216,11 @@ passport.use(
             "google",
           ]);
           cb(null, user);
-        }else{
-          cb(null, result.rows[0])
+        } else {
+          cb(null, result.rows[0]);
         }
       } catch (error) {
-        cb(error)
+        cb(error);
       }
     }
   )
